@@ -1,38 +1,11 @@
 use curl::easy::Easy;
 use serde_xml_rs::from_reader;
+use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 
 mod goodreads_remote;
 use goodreads_remote::*;
-
-#[derive(Debug)]
-pub struct  Author {
-    id: i32,
-    name: String,
-}
-
-#[derive(Debug)]
-pub struct CoverSet {
-    small: String,
-    normal: String,
-}
-
-#[derive(Debug)]
-pub struct Book {
-    id: i32,
-    title: String,
-    author: Author,
-    cover: CoverSet,
-    rating: f32,
-}
-
-#[derive(Debug)]
-pub struct SearchResult {
-    start: i32,
-    end: i32,
-    total: i32,
-    source: String,
-    books: Vec<Book>,
-}
+mod data_structures;
+use data_structures::*;
 
 impl RemoteSearch {
     fn to_search_result(&self) -> SearchResult {
@@ -59,31 +32,41 @@ impl Work {
     }
 }
 
+pub struct Goodreads<'a> {
+    key: &'a str
+}
 
-pub fn make_get_request<F>(key: String, callback: F) where F: Fn(SearchResult) {
-    let mut easy = Easy::new();
-    let mut final_data = Vec::new();
-    let url = format!("https://www.goodreads.com/search/index.xml?q=potter&key={}", key);
-
-    easy.url(url.as_str()).unwrap();
-    {
-        let mut transfer = easy.transfer();
-        transfer.write_function( |data| {
-            final_data.extend_from_slice(data);
-            return Ok(data.len());
-        }).unwrap();
-        transfer.perform().unwrap();
+impl<'a> Goodreads<'a> {
+    pub fn new(key: &str) -> Goodreads {
+        return Goodreads{ key }
     }
 
-    let response: GoodreadsResponse = from_reader(final_data.as_slice()).unwrap();
-    let result: SearchResult = response.search.to_search_result();
-    callback(result);
+    pub fn search<F>(&self, query: &str, page: i32, callback: F) where F: Fn(SearchResult) {
+        let mut easy = Easy::new();
+        let mut final_data = Vec::new();
+        let encoded_query: String = utf8_percent_encode(query, NON_ALPHANUMERIC).collect();
+        let url = format!("https://www.goodreads.com/search/index.xml?q={}&page={}&key={}", encoded_query.as_str(), page, self.key);
+
+        easy.url(url.as_str()).unwrap();
+        {
+            let mut transfer = easy.transfer();
+            transfer.write_function( |data| {
+                final_data.extend_from_slice(data);
+                return Ok(data.len());
+            }).unwrap();
+            transfer.perform().unwrap();
+        }
+
+        let response: GoodreadsResponse = from_reader(final_data.as_slice()).unwrap();
+        let result: SearchResult = response.search.to_search_result();
+
+        callback(result);
+    }
 }
+
 
 #[cfg(test)]
 mod tests {
-    use crate::make_get_request;
-
     #[test]
     fn it_works() {
 

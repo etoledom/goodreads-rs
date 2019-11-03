@@ -1,9 +1,10 @@
-use goodreads_rs::make_get_request;
+use goodreads_rs::Goodreads;
 
 fn main() {
     let key = std::env::var("GOODREADS_KEY").unwrap();
-    make_get_request(key, Box::new(|result| {
+    let goodreads = Goodreads::new(key.as_str());
+    goodreads.search("Bernardo O'higgins", 1, |result| {
         println!("THIS WORKS!");
-        println!("Results: {:?}", result);
-    }));
+        println!("{:?}", result);
+    });
 }
