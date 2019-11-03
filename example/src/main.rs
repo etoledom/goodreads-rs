@@ -5,5 +5,4 @@ fn main() {
     make_get_request(key, Box::new(|| {
         println!("THIS WORKS!")
     }));
-    println!("Hello world");
 }

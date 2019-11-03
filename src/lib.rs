@@ -1,9 +1,6 @@
 use curl::easy::Easy;
 use serde_xml_rs::from_reader;
 use serde::Deserialize;
-use std::thread;
-use std::io::BufReader;
-use xml::{EventReader, reader::XmlEvent};
 
 #[derive(Deserialize, Debug)]
 struct GoodreadsResponse {
@@ -60,10 +57,11 @@ struct XMLFloat {
     body: f32,
 }
 
-pub fn make_get_request<F>(key: String, f: Box<F>) where F: Fn() + 'static, F: std::marker::Sync, F: std::marker::Send {
+pub fn make_get_request<F>(key: String, callback: F) where F: Fn() {
     let mut easy = Easy::new();
     let mut final_data = Vec::new();
     let url = format!("https://www.goodreads.com/search/index.xml?q=potter&key={}", key);
+
     easy.url(url.as_str()).unwrap();
     {
         let mut transfer = easy.transfer();
@@ -73,9 +71,10 @@ pub fn make_get_request<F>(key: String, f: Box<F>) where F: Fn() + 'static, F: s
         }).unwrap();
         transfer.perform().unwrap();
     }
+    
     let response: GoodreadsResponse = from_reader(final_data.as_slice()).unwrap();
     println!("{:#?}", response);
-
+    callback();
 }
 
 #[cfg(test)]
