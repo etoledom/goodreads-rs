@@ -60,10 +60,11 @@ struct XMLFloat {
     body: f32,
 }
 
-pub fn make_get_request<F>(f: Box<F>) where F: Fn() + 'static, F: std::marker::Sync, F: std::marker::Send {
+pub fn make_get_request<F>(key: String, f: Box<F>) where F: Fn() + 'static, F: std::marker::Sync, F: std::marker::Send {
     let mut easy = Easy::new();
     let mut final_data = Vec::new();
-    easy.url("https://www.goodreads.com/search/index.xml?q=potter").unwrap();
+    let url = format!("https://www.goodreads.com/search/index.xml?q=potter&key={}", key);
+    easy.url(url.as_str()).unwrap();
     {
         let mut transfer = easy.transfer();
         transfer.write_function( |data| {
