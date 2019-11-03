@@ -1,63 +1,66 @@
 use curl::easy::Easy;
 use serde_xml_rs::from_reader;
-use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
-struct GoodreadsResponse {
-    search: Search,
+mod goodreads_remote;
+use goodreads_remote::*;
+
+#[derive(Debug)]
+pub struct  Author {
+    id: i32,
+    name: String,
 }
 
-#[derive(Deserialize, Debug)]
-struct Search {
-    results: Results,
+#[derive(Debug)]
+pub struct CoverSet {
+    small: String,
+    normal: String,
 }
 
-#[derive(Deserialize, Debug)]
-struct Results {
-    work: Vec<Work>,
+#[derive(Debug)]
+pub struct Book {
+    id: i32,
+    title: String,
+    author: Author,
+    cover: CoverSet,
+    rating: f32,
 }
 
-#[derive(Deserialize, Debug)]
-struct Work {
-    id: XMLInt,
-    average_rating: XMLFloat,
-    best_book: RemoteBook,
+#[derive(Debug)]
+pub struct SearchResult {
+    start: i32,
+    end: i32,
+    total: i32,
+    source: String,
+    books: Vec<Book>,
 }
 
-#[derive(Deserialize, Debug)]
-struct RemoteBook {
-    title: XMLString,
-    id: XMLInt,
-    author: RemoteAuthor,
-    image_url: XMLString,
-    small_image_url: XMLString,
+impl RemoteSearch {
+    fn to_search_result(&self) -> SearchResult {
+        let books: Vec<Book> = self.results.work.iter().map(|work| work.to_book() ).collect();
+        return SearchResult {
+            start: self.results_start.body,
+            end: self.results_end.body,
+            total: self.total_results.body,
+            source: self.source.body.clone(),
+            books: books,
+        }
+    }
 }
 
-#[derive(Deserialize, Debug)]
-struct RemoteAuthor {
-    id: XMLInt,
-    name: XMLString,
+impl Work {
+    fn to_book(&self) -> Book {
+        return Book {
+            id: self.id.body.clone(),
+            title: self.best_book.title.body.clone(),
+            author: Author { id: self.best_book.author.id.body.clone(), name: self.best_book.author.name.body.clone() },
+            cover: CoverSet { small: self.best_book.small_image_url.body.clone(), normal: self.best_book.image_url.body.clone() },
+            rating: self.average_rating.body.clone(),
+        };
+    }
 }
 
-#[derive(Deserialize, Debug)]
-struct XMLString {
-    #[serde(rename = "$value")]
-    body: String,
-}
 
-#[derive(Deserialize, Debug)]
-struct XMLInt {
-    #[serde(rename = "$value")]
-    body: i32,
-}
-
-#[derive(Deserialize, Debug)]
-struct XMLFloat {
-    #[serde(rename = "$value")]
-    body: f32,
-}
-
-pub fn make_get_request<F>(key: String, callback: F) where F: Fn() {
+pub fn make_get_request<F>(key: String, callback: F) where F: Fn(SearchResult) {
     let mut easy = Easy::new();
     let mut final_data = Vec::new();
     let url = format!("https://www.goodreads.com/search/index.xml?q=potter&key={}", key);
@@ -71,10 +74,10 @@ pub fn make_get_request<F>(key: String, callback: F) where F: Fn() {
         }).unwrap();
         transfer.perform().unwrap();
     }
-    
+
     let response: GoodreadsResponse = from_reader(final_data.as_slice()).unwrap();
-    println!("{:#?}", response);
-    callback();
+    let result: SearchResult = response.search.to_search_result();
+    callback(result);
 }
 
 #[cfg(test)]
