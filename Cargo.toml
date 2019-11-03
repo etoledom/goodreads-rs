@@ -1,0 +1,13 @@
+[package]
+name = "goodreads-rs"
+version = "0.1.0"
+authors = ["etoledom <etoledom@icloud.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+curl = "0.4.25"
+xml-rs = "0.8.0"
+serde-xml-rs = "0.3.1"
+serde = { version = "1.0", features = ["derive"] }
